@@ -123,13 +123,13 @@ export default class MovieNotesController {
         .whereLike("movieNotes.title", `%${title}%`)
         .whereIn("movieTags.name", filterMovieTags)
         .innerJoin("movieTags", "movieNotes.id", "movieTags.movie_note_id")
-        .orderBy("movieNotes.rating");
+        .orderBy("movieNotes.rating", "desc");
     } else {
       movieNotes = await knex("movieNotes")
         .select("id", "title", "rating", "user_id")
         .where({ user_id })
         .whereLike("title", `%${title}%`)
-        .orderBy("rating");
+        .orderBy("rating", "desc");
     }
 
     if (movieNotes.length === 0) {
@@ -158,13 +158,13 @@ export default class MovieNotesController {
 
     const movieNote = await knex("movieNotes").first().where({ id, user_id });
 
+    if (!movieNote) {
+      throw new AppError("Nenhuma anotação de filme encontrada!");
+    }
+
     const movieTags = await knex("movieTags")
       .where({ movie_note_id: id, user_id })
       .orderBy("name");
-
-    if (!movieNote) {
-      throw new AppError("Não Autorizado");
-    }
 
     return response.status(200).json({
       ...movieNote,
