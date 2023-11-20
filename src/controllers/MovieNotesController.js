@@ -96,6 +96,93 @@ export default class MovieNotesController {
       })
       .where("movieNotes.id", movieNotes.id);
 
-    response.status(200).json();
+    return response.status(200).json();
+  }
+
+  async index(request, response) {
+    const { user_id, title, movieTags } = request.query;
+
+    let movieNotes;
+
+    if (!title && !movieTags) {
+      throw new AppError("Nenhum valor de pesquisa passado!");
+    }
+
+    if (movieTags) {
+      const filterMovieTags = movieTags.split(",").map((tag) => tag.trim());
+
+      movieNotes = await knex("movieNotes")
+        .select(
+          "movieNotes.id",
+          "movieNotes.title",
+          "movieNotes.rating",
+          "movieNotes.user_id"
+        )
+        .distinct("movieNotes.id")
+        .where("movieNotes.user_id", user_id)
+        .whereLike("movieNotes.title", `%${title}%`)
+        .whereIn("movieTags.name", filterMovieTags)
+        .innerJoin("movieTags", "movieNotes.id", "movieTags.movie_note_id")
+        .orderBy("movieNotes.rating");
+    } else {
+      movieNotes = await knex("movieNotes")
+        .select("id", "title", "rating", "user_id")
+        .where({ user_id })
+        .whereLike("title", `%${title}%`)
+        .orderBy("rating");
+    }
+
+    if (movieNotes.length === 0) {
+      throw new AppError("Nenhuma anotação encontrada!");
+    }
+
+    const userTags = await knex("movieTags").where({ user_id });
+
+    const movieNotesWithTags = movieNotes.map((movieNote) => {
+      const movieNoteTags = userTags.filter((tag) => {
+        return tag.movie_note_id === movieNote.id;
+      });
+
+      return {
+        ...movieNote,
+        tags: movieNoteTags,
+      };
+    });
+
+    return response.status(200).json(movieNotesWithTags);
+  }
+
+  async show(request, response) {
+    const { id } = request.params;
+    const { user_id } = request.query;
+
+    const movieNote = await knex("movieNotes").first().where({ id, user_id });
+
+    const movieTags = await knex("movieTags")
+      .where({ movie_note_id: id, user_id })
+      .orderBy("name");
+
+    if (!movieNote) {
+      throw new AppError("Não Autorizado");
+    }
+
+    return response.status(200).json({
+      ...movieNote,
+      movieTags,
+    });
+  }
+
+  async delete(request, response) {
+    const { id } = request.params;
+
+    const { user_id } = request.query;
+
+    const movieNote = await knex("movieNotes").where({ id, user_id }).delete();
+
+    if (!movieNote) {
+      throw new AppError("Nenhuma anotação de filme encontrada!");
+    }
+
+    return response.status(200).json();
   }
 }

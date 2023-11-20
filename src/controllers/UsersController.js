@@ -84,6 +84,6 @@ export default class UsersController {
       })
       .where("users.id", user.id);
 
-    response.status(200).json();
+    return response.status(200).json();
   }
 }
