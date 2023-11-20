@@ -37,7 +37,7 @@ export default class UsersController {
     }
 
     if (!name && !email && !password) {
-      throw new AppError("Nenhum valor informado para ser atualizado!");
+      throw new AppError("Informe um valor para ser atualizado!");
     }
 
     if (email) {
