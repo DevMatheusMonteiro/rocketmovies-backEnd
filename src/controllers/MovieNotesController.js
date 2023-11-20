@@ -50,9 +50,9 @@ export default class MovieNotesController {
   async update(request, response) {
     const { title, description, rating } = request.body;
 
-    const { id } = request.params;
+    const { user_id } = request.params;
 
-    const { user_id } = request.query;
+    const { id } = request.query;
 
     const [movieNotes] = await knex("movieNotes")
       .select()

@@ -5,6 +5,6 @@ const movieNotesRoutes = Router();
 const movieNotesController = new MovieNotesController();
 
 movieNotesRoutes.post("/:user_id", movieNotesController.create);
-movieNotesRoutes.put("/:id", movieNotesController.update);
+movieNotesRoutes.put("/:user_id", movieNotesController.update);
 
 export default movieNotesRoutes;
