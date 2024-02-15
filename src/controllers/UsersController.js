@@ -26,18 +26,14 @@ export default class UsersController {
   async update(request, response) {
     const { name, email, password, old_password } = request.body;
 
-    const { id } = request.params;
+    const { id } = request.user;
 
     const { hash, compare } = bcryptjs;
 
-    const user = await knex("users").first().where("users.id", id);
+    const user = await knex("users").where({ id }).first();
 
     if (!user) {
       throw new AppError("Usuário não encontrado!");
-    }
-
-    if (!name && !email && !password) {
-      throw new AppError("Informe um valor para ser atualizado!");
     }
 
     if (email) {
@@ -58,16 +54,10 @@ export default class UsersController {
     }
 
     if (password && old_password) {
-      const samePassword = await compare(password, user.password);
-
-      if (samePassword) {
-        throw new AppError("A senha atual está igual a senha antiga!");
-      }
-
       const checkPassword = await compare(old_password, user.password);
 
       if (!checkPassword) {
-        throw new AppError("Senha antiga incorreta!");
+        throw new AppError("Senha atual incorreta!");
       }
 
       const hashedPassword = await hash(password, 8);
@@ -85,5 +75,13 @@ export default class UsersController {
       .where("users.id", user.id);
 
     return response.status(200).json();
+  }
+
+  async show(request, response) {
+    const { id } = request.user;
+
+    await knex("users").where({ id }).first();
+
+    response.json();
   }
 }

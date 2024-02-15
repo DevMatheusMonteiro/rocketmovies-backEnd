@@ -5,7 +5,7 @@ export default class MovieTagsController {
   async create(request, response) {
     const { name } = request.body;
 
-    const { user_id } = request.params;
+    const user_id = request.user.id;
 
     const { movie_note_id } = request.query;
 
@@ -22,7 +22,9 @@ export default class MovieTagsController {
       .where({ movie_note_id, user_id, name });
 
     if (checkMovieTagsExists) {
-      throw new AppError("Já existe uma tag com esse nome para essa anotação");
+      throw new AppError(
+        `Já existe uma tag com o nome ${name} para essa anotação`
+      );
     }
 
     await knex("movieTags").insert({ movie_note_id, user_id, name });
@@ -30,15 +32,25 @@ export default class MovieTagsController {
       .update({ updated_at: knex.fn.now() })
       .where({ id: movie_note_id });
 
-    return response.status(201).json();
+    const movieTag = await knex("movieTags")
+      .where({
+        movie_note_id,
+        user_id,
+        name,
+      })
+      .first();
+
+    return response.status(201).json(movieTag);
   }
 
   async update(request, response) {
     const { name } = request.body;
 
-    const { user_id } = request.params;
+    const user_id = request.user.id;
 
-    const { movie_note_id, id } = request.query;
+    const { movie_note_id } = request.query;
+
+    const { id } = request.params;
 
     const [movieNotes] = await knex("movieNotes")
       .select()
@@ -58,8 +70,6 @@ export default class MovieTagsController {
       .select()
       .where({ movie_note_id, user_id, name });
 
-    console.log(checkMovieTagName);
-
     if (checkMovieTagName && checkMovieTagName.id !== movieTags.id) {
       throw new AppError("Já existe uma tag com esse nome para essa anotação!");
     }
@@ -74,13 +84,13 @@ export default class MovieTagsController {
   }
 
   async index(request, response) {
-    const { user_id, name } = request.query;
+    const user_id = request.user.id;
 
-    const movieTags = await knex("movieTags")
-      .where({ user_id })
-      .whereLike("name", `%${name.trim()}%`);
+    const { movie_note_id } = request.query;
 
-    if (movieTags.length === 0 && name.trim().length === 0) {
+    const movieTags = await knex("movieTags").where({ user_id, movie_note_id });
+
+    if (movieTags.length === 0) {
       throw new AppError("Nenhuma tag encontrada!");
     }
 
@@ -90,9 +100,9 @@ export default class MovieTagsController {
   async show(request, response) {
     const { id } = request.params;
 
-    const { user_id } = request.query;
+    const user_id = request.user.id;
 
-    const movieTag = await knex("movieTags").first().where({ id, user_id });
+    const movieTag = await knex("movieTags").where({ id, user_id }).first();
 
     if (!movieTag) {
       throw new AppError("Nenhuma tag encontrada!");
@@ -104,7 +114,9 @@ export default class MovieTagsController {
   async delete(request, response) {
     const { id } = request.params;
 
-    const { user_id, movie_note_id } = request.query;
+    const { movie_note_id } = request.query;
+
+    const user_id = request.user.id;
 
     const movieTag = await knex("movieTags")
       .where({ id, user_id, movie_note_id })

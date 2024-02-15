@@ -2,9 +2,16 @@ import "express-async-errors";
 import express from "express";
 import routes from "./routes/index.js";
 import AppError from "./utils/AppError.js";
+import { UPLOAD_FOLDER } from "./configs/upload.js";
+import cors from "cors";
 
 const app = express();
+
+app.use(cors());
+
 app.use(express.json());
+
+app.use("/file", express.static(UPLOAD_FOLDER));
 
 app.use(routes);
 

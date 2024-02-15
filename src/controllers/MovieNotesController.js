@@ -5,7 +5,7 @@ export default class MovieNotesController {
   async create(request, response) {
     const { title, description, rating, movieTags } = request.body;
 
-    const { user_id } = request.params;
+    const user_id = request.user.id;
 
     const [checkUserExists] = await knex("users")
       .select()
@@ -23,8 +23,8 @@ export default class MovieNotesController {
       throw new AppError("Já há uma anotação de filme com esse título!");
     }
 
-    if (rating < 1 || rating > 5) {
-      throw new AppError("Nota deve ser de 1 a 5");
+    if (rating < 0 || rating > 5) {
+      throw new AppError("Nota deve ser de 0 a 5");
     }
 
     const [movie_note_id] = await knex("movieNotes").insert({
@@ -34,15 +34,17 @@ export default class MovieNotesController {
       user_id,
     });
 
-    const tagsInsert = movieTags.map((tags) => {
-      return {
-        movie_note_id,
-        user_id,
-        name: tags,
-      };
-    });
+    if (movieTags.length > 0) {
+      const tagsInsert = movieTags.map((tags) => {
+        return {
+          movie_note_id,
+          user_id,
+          name: tags,
+        };
+      });
 
-    await knex("movieTags").insert(tagsInsert);
+      await knex("movieTags").insert(tagsInsert);
+    }
 
     return response.status(201).json();
   }
@@ -50,26 +52,18 @@ export default class MovieNotesController {
   async update(request, response) {
     const { title, description, rating } = request.body;
 
-    const { user_id } = request.params;
+    const user_id = request.user.id;
 
-    const { id } = request.query;
+    const { id } = request.params;
 
     const [movieNotes] = await knex("movieNotes")
       .select()
       .where({ id, user_id });
 
-    if (!movieNotes) {
-      throw new AppError("Anotação não encontrada!");
-    }
-
-    if (!title && !description && !rating) {
-      throw new AppError("Nenhum valor informado para ser atualizado!");
-    }
-
     if (title) {
       const [movieNotesWithUpdatedTitle] = await knex("movieNotes")
         .select()
-        .where({ title, user_id });
+        .where({ title, user_id, id });
 
       if (
         movieNotesWithUpdatedTitle &&
@@ -79,8 +73,8 @@ export default class MovieNotesController {
       }
     }
 
-    if (rating < 1 || rating > 5) {
-      throw new AppError("Nota deve ser de 1 a 5");
+    if (rating < 0 || rating > 5) {
+      throw new AppError("Nota deve ser de 0 a 5");
     }
 
     movieNotes.title = title ?? movieNotes.title;
@@ -100,13 +94,11 @@ export default class MovieNotesController {
   }
 
   async index(request, response) {
-    const { user_id, title, movieTags } = request.query;
+    const { title, movieTags } = request.query;
+
+    const user_id = request.user.id;
 
     let movieNotes;
-
-    if (!title && !movieTags) {
-      throw new AppError("Nenhum valor de pesquisa passado!");
-    }
 
     if (movieTags) {
       const filterMovieTags = movieTags.split(",").map((tag) => tag.trim());
@@ -115,6 +107,7 @@ export default class MovieNotesController {
         .select(
           "movieNotes.id",
           "movieNotes.title",
+          "movieNotes.description",
           "movieNotes.rating",
           "movieNotes.user_id"
         )
@@ -126,14 +119,10 @@ export default class MovieNotesController {
         .orderBy("movieNotes.rating", "desc");
     } else {
       movieNotes = await knex("movieNotes")
-        .select("id", "title", "rating", "user_id")
+        .select("id", "title", "rating", "description", "user_id")
         .where({ user_id })
         .whereLike("title", `%${title}%`)
         .orderBy("rating", "desc");
-    }
-
-    if (movieNotes.length === 0) {
-      throw new AppError("Nenhuma anotação encontrada!");
     }
 
     const userTags = await knex("movieTags").where({ user_id });
@@ -145,7 +134,7 @@ export default class MovieNotesController {
 
       return {
         ...movieNote,
-        tags: movieNoteTags,
+        movieTags: movieNoteTags,
       };
     });
 
@@ -154,12 +143,12 @@ export default class MovieNotesController {
 
   async show(request, response) {
     const { id } = request.params;
-    const { user_id } = request.query;
+    const user_id = request.user.id;
 
-    const movieNote = await knex("movieNotes").first().where({ id, user_id });
+    const movieNote = await knex("movieNotes").where({ id, user_id }).first();
 
     if (!movieNote) {
-      throw new AppError("Nenhuma anotação de filme encontrada!");
+      throw new AppError("Nenhuma anotação de filme encontrada!", 404);
     }
 
     const movieTags = await knex("movieTags")
@@ -175,7 +164,7 @@ export default class MovieNotesController {
   async delete(request, response) {
     const { id } = request.params;
 
-    const { user_id } = request.query;
+    const user_id = request.user.id;
 
     const movieNote = await knex("movieNotes").where({ id, user_id }).delete();
 
